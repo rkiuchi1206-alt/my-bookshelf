@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>マイ本棚</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="https://via.placeholder.com/192/000000/FFFFFF?text=Books">
+  <style>
+    body { -webkit-tap-highlight-color: transparent; }
+    .aspect-cover { aspect-ratio: 1 / 1.5; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-[#f2f2f7] text-gray-900 min-h-screen pb-24 select-none font-sans">
+
+  <header class="sticky top-0 z-10 bg-[#f2f2f7]/90 backdrop-blur-xl px-5 pt-12 pb-3 flex justify-between items-end">
+    <h1 class="text-2xl font-bold tracking-tight">本棚</h1>
+    <button onclick="openFormModal()" class="text-blue-500 font-semibold text-base hover:text-blue-700 transition">
+      ＋ 追加
+    </button>
+  </header>
+
+  <section class="px-5 pt-2 pb-4 space-y-4">
+    <div class="flex space-x-2 text-sm font-medium">
+      <button onclick="setCategory('ALL')" id="cat-ALL" class="cat-btn px-4 py-1.5 rounded-full bg-black text-white shadow-sm">すべて</button>
+      <button onclick="setCategory('STUDY')" id="cat-STUDY" class="cat-btn px-4 py-1.5 rounded-full bg-white text-gray-600 shadow-sm">勉強用</button>
+      <button onclick="setCategory('HOBBY')" id="cat-HOBBY" class="cat-btn px-4 py-1.5 rounded-full bg-white text-gray-600 shadow-sm">趣味用</button>
+    </div>
+
+    <div class="flex space-x-5 text-sm overflow-x-auto no-scrollbar pb-1">
+      <button onclick="setStatus('ALL')" id="stat-ALL" class="stat-btn pb-1 font-bold border-b-2 border-black text-black whitespace-nowrap">すべて</button>
+      <button onclick="setStatus('WANT')" id="stat-WANT" class="stat-btn pb-1 font-medium text-gray-400 border-b-2 border-transparent whitespace-nowrap">読みたい</button>
+      <button onclick="setStatus('UNREAD')" id="stat-UNREAD" class="stat-btn pb-1 font-medium text-gray-400 border-b-2 border-transparent whitespace-nowrap">積読</button>
+      <button onclick="setStatus('READING')" id="stat-READING" class="stat-btn pb-1 font-medium text-gray-400 border-b-2 border-transparent whitespace-nowrap">読んでいる</button>
+      <button onclick="setStatus('COMPLETED')" id="stat-COMPLETED" class="stat-btn pb-1 font-medium text-gray-400 border-b-2 border-transparent whitespace-nowrap">読了</button>
+    </div>
+  </section>
+
+  <main class="px-5">
+    <div id="books-grid" class="grid grid-cols-3 gap-x-4 gap-y-6 sm:grid-cols-4 md:grid-cols-5">
+      </div>
+    <div id="empty-state" class="hidden text-center py-20 text-gray-400 text-sm">
+      <div class="text-4xl mb-3">📚</div>
+      本がありません<br>右上の「＋ 追加」から登録しましょう
+    </div>
+  </main>
+
+  <div id="detail-modal" class="fixed inset-0 bg-black/60 z-40 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+    <div class="bg-white w-11/12 max-w-sm rounded-2xl overflow-hidden shadow-2xl transform scale-95 transition-transform duration-300" id="detail-modal-content">
+      <div class="relative w-full h-64 bg-gray-100 flex items-center justify-center p-4">
+        <img id="detail-cover" src="" class="h-full object-contain drop-shadow-xl rounded-sm">
+        <button onclick="closeDetailModal()" class="absolute top-3 right-3 bg-black/50 text-white w-8 h-8 rounded-full flex items-center justify-center text-lg font-bold backdrop-blur-sm">&times;</button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div>
+          <h2 id="detail-title" class="text-xl font-bold leading-tight"></h2>
+          <p id="detail-author" class="text-sm text-gray-500 mt-1"></p>
+        </div>
+        <div class="flex space-x-2 text-xs font-semibold">
+          <span id="detail-category" class="px-2 py-1 bg-gray-100 text-gray-600 rounded-md"></span>
+          <span id="detail-status" class="px-2 py-1 bg-blue-50 text-blue-600 rounded-md"></span>
+        </div>
+        <div class="pt-4 border-t border-gray-100 flex justify-between">
+          <button onclick="deleteBook()" class="text-red-500 text-sm font-medium px-2 py-1">削除</button>
+          <button onclick="editBook()" class="bg-black text-white text-sm font-bold px-5 py-2 rounded-full">編集する</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="form-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-end sm:items-center justify-center opacity-0 transition-opacity duration-300">
+    <div class="bg-white w-full sm:w-11/12 max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300" id="form-modal-content">
+      <div class="flex justify-between items-center mb-5">
+        <h2 id="form-title" class="text-lg font-bold">本を登録</h2>
+        <button onclick="closeFormModal()" class="text-blue-500 font-semibold text-sm">キャンセル</button>
+      </div>
+
+      <form id="book-form" onsubmit="handleSaveBook(event)" class="space-y-4">
+        <input type="hidden" id="input-id">
+        <div>
+          <label class="block text-xs font-bold text-gray-500 mb-1">タイトル *</label>
+          <input type="text" id="input-title" required class="w-full bg-gray-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-500 mb-1">作者</label>
+          <input type="text" id="input-author" class="w-full bg-gray-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-gray-500 mb-1">表紙画像URL (空欄で自動ダミー)</label>
+          <input type="url" id="input-cover" placeholder="https://..." class="w-full bg-gray-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-gray-500 mb-1">カテゴリ</label>
+            <select id="input-category" class="w-full bg-gray-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="STUDY">勉強用</option>
+              <option value="HOBBY">趣味用</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-gray-500 mb-1">ステータス</label>
+            <select id="input-status" class="w-full bg-gray-100 rounded-xl p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="WANT">読みたい</option>
+              <option value="UNREAD">積読</option>
+              <option value="READING">読んでいる</option>
+              <option value="COMPLETED">読了</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="pt-4">
+          <button type="submit" class="w-full bg-black text-white rounded-xl font-bold p-3.5 shadow-lg active:scale-95 transition">保存する</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // --- データ管理（localStorageで保存） ---
+    let books = JSON.parse(localStorage.getItem('myBooks')) || [];
+    
+    // 初回のみサンプルデータを入れる
+    if (books.length === 0) {
+      books = [
+        { id: '1', title: '思考の整理学', author: '外山滋比古', category: 'STUDY', status: 'COMPLETED', cover: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300&fit=crop' },
+        { id: '2', title: 'デザインの骨格', author: '山中俊治', category: 'HOBBY', status: 'READING', cover: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=300&fit=crop' }
+      ];
+      saveData();
+    }
+
+    function saveData() {
+      localStorage.setItem('myBooks', JSON.stringify(books));
+    }
+
+    // --- 状態管理 ---
+    let currentCategory = 'ALL';
+    let currentStatus = 'ALL';
+    let viewingBookId = null;
+
+    const STATUS_LABELS = { WANT: '読みたい', UNREAD: '積読', READING: '読んでいる', COMPLETED: '読了' };
+    const CATEGORY_LABELS = { STUDY: '勉強用', HOBBY: '趣味用' };
+
+    // --- 描画処理 ---
+    function renderBooks() {
+      const grid = document.getElementById('books-grid');
+      const empty = document.getElementById('empty-state');
+      grid.innerHTML = '';
+
+      const filtered = books.filter(b => {
+        const matchCat = currentCategory === 'ALL' || b.category === currentCategory;
+        const matchStat = currentStatus === 'ALL' || b.status === currentStatus;
+        return matchCat && matchStat;
+      });
+
+      if (filtered.length === 0) {
+        empty.classList.remove('hidden');
+      } else {
+        empty.classList.add('hidden');
+        filtered.forEach(book => {
+          const card = document.createElement('div');
+          card.className = "flex flex-col space-y-2 cursor-pointer group";
+          card.onclick = () => openDetailModal(book.id);
+          card.innerHTML = `
+            <div class="w-full aspect-cover bg-gray-200 rounded-md overflow-hidden shadow-[2px_4px_12px_rgba(0,0,0,0.1)] group-active:scale-95 transition transform">
+              <img src="${book.cover}" alt="${book.title}" class="w-full h-full object-cover">
+            </div>
+            <div class="px-0.5">
+              <p class="text-[13px] font-bold leading-tight line-clamp-2 text-gray-900">${book.title}</p>
+              <p class="text-[11px] text-gray-500 line-clamp-1 mt-0.5">${book.author || '未設定'}</p>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      }
+    }
+
+    // --- フィルター操作 ---
+    function setCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.className = 'cat-btn px-4 py-1.5 rounded-full bg-white text-gray-600 shadow-sm';
+      });
+      document.getElementById(`cat-${cat}`).className = 'cat-btn px-4 py-1.5 rounded-full bg-black text-white shadow-sm';
+      renderBooks();
+    }
+
+    function setStatus(stat) {
+      currentStatus = stat;
+      document.querySelectorAll('.stat-btn').forEach(btn => {
+        btn.className = 'stat-btn pb-1 font-medium text-gray-400 border-b-2 border-transparent whitespace-nowrap';
+      });
+      document.getElementById(`stat-${stat}`).className = 'stat-btn pb-1 font-bold border-b-2 border-black text-black whitespace-nowrap';
+      renderBooks();
+    }
+
+    // --- モーダル制御（詳細） ---
+    function openDetailModal(id) {
+      viewingBookId = id;
+      const book = books.find(b => b.id === id);
+      document.getElementById('detail-cover').src = book.cover;
+      document.getElementById('detail-title').innerText = book.title;
+      document.getElementById('detail-author').innerText = book.author || '作者不明';
+      document.getElementById('detail-category').innerText = CATEGORY_LABELS[book.category];
+      document.getElementById('detail-status').innerText = STATUS_LABELS[book.status];
+      
+      const modal = document.getElementById('detail-modal');
+      const content = document.getElementById('detail-modal-content');
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        content.classList.remove('scale-95');
+      }, 10);
+    }
+
+    function closeDetailModal() {
+      const modal = document.getElementById('detail-modal');
+      const content = document.getElementById('detail-modal-content');
+      modal.classList.add('opacity-0');
+      content.classList.add('scale-95');
+      setTimeout(() => modal.classList.add('hidden'), 300);
+      viewingBookId = null;
+    }
+
+    // --- モーダル制御（追加・編集フォーム） ---
+    function openFormModal(isEdit = false) {
+      if (!isEdit) {
+        document.getElementById('book-form').reset();
+        document.getElementById('input-id').value = '';
+        document.getElementById('form-title').innerText = '本を登録';
+      }
+      
+      const modal = document.getElementById('form-modal');
+      const content = document.getElementById('form-modal-content');
+      modal.classList.remove('hidden');
+      setTimeout(() => {
+        modal.classList.remove('opacity-0');
+        if(window.innerWidth < 640) content.classList.remove('translate-y-full'); // スマホは下からスライド
+      }, 10);
+    }
+
+    function closeFormModal() {
+      const modal = document.getElementById('form-modal');
+      const content = document.getElementById('form-modal-content');
+      modal.classList.add('opacity-0');
+      if(window.innerWidth < 640) content.classList.add('translate-y-full');
+      setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+
+    function editBook() {
+      const book = books.find(b => b.id === viewingBookId);
+      document.getElementById('input-id').value = book.id;
+      document.getElementById('input-title').value = book.title;
+      document.getElementById('input-author').value = book.author;
+      document.getElementById('input-cover').value = book.cover.includes('unsplash') ? '' : book.cover; // デフォルト画像URLなら空にする
+      document.getElementById('input-category').value = book.category;
+      document.getElementById('input-status').value = book.status;
+      
+      document.getElementById('form-title').innerText = '本を編集';
+      closeDetailModal();
+      setTimeout(() => openFormModal(true), 300);
+    }
+
+    // --- データの保存・削除 ---
+    function handleSaveBook(e) {
+      e.preventDefault();
+      const id = document.getElementById('input-id').value;
+      const status = document.getElementById('input-status').value;
+      
+      // 仕様:「読んでいる」は最大3冊まで
+      if (status === 'READING') {
+        const readingCount = books.filter(b => b.status === 'READING' && b.id !== id).length;
+        if (readingCount >= 3) {
+          alert('「読んでいる」本は最大3冊までしか登録できません。');
+          return;
+        }
+      }
+
+      const defaultCover = 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=300&fit=crop'; // ダミー画像
+      const bookData = {
+        title: document.getElementById('input-title').value,
+        author: document.getElementById('input-author').value,
+        cover: document.getElementById('input-cover').value || defaultCover,
+        category: document.getElementById('input-category').value,
+        status: status
+      };
+
+      if (id) {
+        // 更新
+        const index = books.findIndex(b => b.id === id);
+        books[index] = { ...books[index], ...bookData };
+      } else {
+        // 新規追加
+        bookData.id = Date.now().toString();
+        books.unshift(bookData); // 先頭に追加
+      }
+
+      saveData();
+      renderBooks();
+      closeFormModal();
+    }
+
+    function deleteBook() {
+      if (confirm('この本を本棚から削除しますか？')) {
+        books = books.filter(b => b.id !== viewingBookId);
+        saveData();
+        renderBooks();
+        closeDetailModal();
+      }
+    }
+
+    // 初期描画
+    renderBooks();
+  </script>
+</body>
+</html>
