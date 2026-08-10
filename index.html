@@ -17,6 +17,7 @@
 </head>
 <body class="bg-[#f2f2f7] text-gray-900 min-h-screen pb-24 select-none font-sans">
 
+  <!-- ヘッダー -->
   <header class="sticky top-0 z-10 bg-[#f2f2f7]/90 backdrop-blur-xl px-5 pt-12 pb-3 flex justify-between items-end">
     <h1 class="text-2xl font-bold tracking-tight">本棚</h1>
     <div class="flex items-center space-x-3">
@@ -32,6 +33,7 @@
     </div>
   </header>
 
+  <!-- フィルター・タブエリア -->
   <section class="px-5 pt-2 pb-4 space-y-4">
     <div class="flex space-x-2 text-sm font-medium">
       <button onclick="setCategory('ALL')" id="cat-ALL" class="cat-btn px-4 py-1.5 rounded-full bg-black text-white shadow-sm">すべて</button>
@@ -47,6 +49,7 @@
     </div>
   </section>
 
+  <!-- 本棚グリッド -->
   <main class="px-5">
     <div id="books-grid" class="grid grid-cols-3 gap-x-4 gap-y-6 sm:grid-cols-4 md:grid-cols-5"></div>
     <div id="empty-state" class="hidden text-center py-20 text-gray-400 text-sm">
@@ -55,6 +58,7 @@
     </div>
   </main>
 
+  <!-- モーダル（詳細画面 兼 クイックアクション） -->
   <div id="detail-modal" class="fixed inset-0 bg-black/60 z-40 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
     <div class="bg-white w-11/12 max-w-sm rounded-2xl overflow-hidden shadow-2xl transform scale-95 transition-transform duration-300 max-h-[90vh] flex flex-col" id="detail-modal-content">
       <div class="relative w-full h-48 bg-gray-100 flex items-center justify-center p-4 shrink-0">
@@ -72,6 +76,7 @@
           <span id="detail-status" class="px-2 py-1 bg-blue-50 text-blue-600 rounded-md"></span>
         </div>
 
+        <!-- クイックステータス変更エリア -->
         <div class="bg-gray-50 p-3 rounded-xl border border-gray-100 space-y-2">
           <span class="text-[11px] font-bold text-gray-500 block">ステータスをワンタップ変更</span>
           <div class="grid grid-cols-2 gap-1.5 text-xs font-semibold">
@@ -106,6 +111,7 @@
     </div>
   </div>
 
+  <!-- モーダル（本追加・検索・編集フォーム） -->
   <div id="form-modal" class="fixed inset-0 bg-black/60 z-50 hidden flex items-end sm:items-center justify-center opacity-0 transition-opacity duration-300">
     <div class="bg-white w-full sm:w-11/12 max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl transform translate-y-full sm:translate-y-0 transition-transform duration-300 max-h-[90vh] overflow-y-auto" id="form-modal-content">
       <div class="flex justify-between items-center mb-5">
@@ -333,7 +339,7 @@
       viewingBookId = null;
     }
 
-    // 🚀 クイックステータス変更処理
+    // クイックステータス変更処理
     function quickChangeStatus(newStatus) {
       const book = books.find(b => b.id === viewingBookId);
       if (!book) return;
@@ -348,7 +354,6 @@
 
       book.status = newStatus;
       
-      // 読了に変えた時、今日の日付が未設定なら自動で今日をセット
       if (newStatus === 'COMPLETED' && !book.readdate) {
         const today = new Date().toISOString().split('T')[0];
         book.readdate = today;
@@ -357,11 +362,9 @@
       saveData();
       renderBooks();
 
-      // モーダルの表示内容を即時更新
       document.getElementById('detail-status').innerText = STATUS_LABELS[book.status];
       updateQuickButtonsActive(book.status);
 
-      // 読了エリアの表示切替
       const ratingArea = document.getElementById('detail-rating-area');
       const memoArea = document.getElementById('detail-memo-area');
       if (book.status === 'COMPLETED') {
@@ -429,6 +432,7 @@
       }
     }
 
+    // ハイブリッド検索処理
     async function searchBooks() {
       const query = document.getElementById('search-query').value;
       if (!query) return;
@@ -485,6 +489,7 @@
       foundBooks.forEach(book => {
         const div = document.createElement('div');
         div.className = "flex items-center p-2 bg-white rounded-lg shadow-sm border border-gray-100 cursor-pointer active:bg-gray-50";
+        // 検索結果クリック時にタイトル・作者・表紙すべてを渡すように修正済み
         div.onclick = () => selectBookFromSearch(book.title, book.author, book.cover);
         div.innerHTML = `
           <div class="w-10 h-14 bg-gray-200 rounded flex-shrink-0 mr-3 overflow-hidden">
