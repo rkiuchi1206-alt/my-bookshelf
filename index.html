@@ -8,7 +8,6 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="apple-touch-icon" href="https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=192&h=192&fit=crop">
-
   <style>
     body { -webkit-tap-highlight-color: transparent; }
     .aspect-cover { aspect-ratio: 1 / 1.5; }
@@ -68,9 +67,19 @@
           <p id="detail-author" class="text-sm text-gray-500 mt-1"></p>
         </div>
         
-        <div class="flex space-x-2 text-xs font-semibold">
+        <div class="flex space-x-2 text-xs font-semibold items-center">
           <span id="detail-category" class="px-2 py-1 bg-gray-100 text-gray-600 rounded-md"></span>
           <span id="detail-status" class="px-2 py-1 bg-blue-50 text-blue-600 rounded-md"></span>
+        </div>
+
+        <div class="bg-gray-50 p-3 rounded-xl border border-gray-100 space-y-2">
+          <span class="text-[11px] font-bold text-gray-500 block">ステータスをワンタップ変更</span>
+          <div class="grid grid-cols-2 gap-1.5 text-xs font-semibold">
+            <button onclick="quickChangeStatus('WANT')" id="qbtn-WANT" class="py-1.5 px-2 rounded-lg bg-white border border-gray-200 text-gray-700 active:bg-gray-100 transition">⏳ 読みたい</button>
+            <button onclick="quickChangeStatus('UNREAD')" id="qbtn-UNREAD" class="py-1.5 px-2 rounded-lg bg-white border border-gray-200 text-gray-700 active:bg-gray-100 transition">📦 積読</button>
+            <button onclick="quickChangeStatus('READING')" id="qbtn-READING" class="py-1.5 px-2 rounded-lg bg-white border border-gray-200 text-gray-700 active:bg-gray-100 transition">📖 読んでいる</button>
+            <button onclick="quickChangeStatus('COMPLETED')" id="qbtn-COMPLETED" class="py-1.5 px-2 rounded-lg bg-white border border-gray-200 text-gray-700 active:bg-gray-100 transition">✅ 読了</button>
+          </div>
         </div>
 
         <div id="detail-rating-area" class="hidden pt-3 border-t border-gray-100">
@@ -188,30 +197,27 @@
     // --- 状態管理 ---
     let currentCategory = 'ALL';
     let currentStatus = 'ALL';
-    let currentSort = 'ADDED_DESC'; // 追加順(新)をデフォルトに
+    let currentSort = 'ADDED_DESC';
     let viewingBookId = null;
 
     const STATUS_LABELS = { WANT: '読みたい', UNREAD: '積読', READING: '読んでいる', COMPLETED: '読了' };
     const CATEGORY_LABELS = { STUDY: '勉強用', HOBBY: '趣味用' };
 
-    // --- 描画処理（並び替え機能追加） ---
+    // --- 描画処理 ---
     function renderBooks() {
       const grid = document.getElementById('books-grid');
       const empty = document.getElementById('empty-state');
       grid.innerHTML = '';
 
-      // 1. フィルター
       let filtered = books.filter(b => {
         return (currentCategory === 'ALL' || b.category === currentCategory) && 
                (currentStatus === 'ALL' || b.status === currentStatus);
       });
 
-      // 2. 並び替え（ソート）
       filtered.sort((a, b) => {
         if (currentSort === 'ADDED_DESC') return b.id - a.id;
         if (currentSort === 'ADDED_ASC') return a.id - b.id;
         if (currentSort === 'RATING_DESC') {
-          // お気に入りフラグがある5点は、通常の5点より上にくるように微調整
           const scoreA = (a.rating || 0) + (a.favorite && a.rating == 5 ? 0.1 : 0);
           const scoreB = (b.rating || 0) + (b.favorite && b.rating == 5 ? 0.1 : 0);
           return scoreB - scoreA;
@@ -233,7 +239,6 @@
           card.className = "flex flex-col space-y-2 cursor-pointer group";
           card.onclick = () => openDetailModal(book.id);
           
-          // 読了本のみ、表紙に評価バッジを小さく表示
           let badgeHTML = '';
           if (book.status === 'COMPLETED' && book.rating > 0) {
             const icon = (book.rating == 5 && book.favorite) ? '🌟' : '★';
@@ -273,7 +278,7 @@
       renderBooks();
     }
 
-    // --- 詳細モーダル ---
+    // --- 詳細・クイックアクションモーダル ---
     function openDetailModal(id) {
       viewingBookId = id;
       const book = books.find(b => b.id === id);
@@ -283,10 +288,11 @@
       document.getElementById('detail-category').innerText = CATEGORY_LABELS[book.category];
       document.getElementById('detail-status').innerText = STATUS_LABELS[book.status];
       
+      updateQuickButtonsActive(book.status);
+
       const ratingArea = document.getElementById('detail-rating-area');
       const memoArea = document.getElementById('detail-memo-area');
 
-      // 読了ステータスの時だけ評価・読了日・感想を表示
       if (book.status === 'COMPLETED') {
         ratingArea.classList.remove('hidden');
         let stars = '';
@@ -325,6 +331,57 @@
       modal.classList.add('opacity-0'); content.classList.add('scale-95');
       setTimeout(() => modal.classList.add('hidden'), 300);
       viewingBookId = null;
+    }
+
+    // 🚀 クイックステータス変更処理
+    function quickChangeStatus(newStatus) {
+      const book = books.find(b => b.id === viewingBookId);
+      if (!book) return;
+
+      if (newStatus === 'READING') {
+        const readingCount = books.filter(b => b.status === 'READING' && b.id !== viewingBookId).length;
+        if (readingCount >= 3) {
+          alert('「読んでいる」本は最大3冊までしか登録できません。');
+          return;
+        }
+      }
+
+      book.status = newStatus;
+      
+      // 読了に変えた時、今日の日付が未設定なら自動で今日をセット
+      if (newStatus === 'COMPLETED' && !book.readdate) {
+        const today = new Date().toISOString().split('T')[0];
+        book.readdate = today;
+      }
+
+      saveData();
+      renderBooks();
+
+      // モーダルの表示内容を即時更新
+      document.getElementById('detail-status').innerText = STATUS_LABELS[book.status];
+      updateQuickButtonsActive(book.status);
+
+      // 読了エリアの表示切替
+      const ratingArea = document.getElementById('detail-rating-area');
+      const memoArea = document.getElementById('detail-memo-area');
+      if (book.status === 'COMPLETED') {
+        ratingArea.classList.remove('hidden');
+        document.getElementById('detail-readdate').innerText = book.readdate ? book.readdate.replace(/-/g, '/') : '未設定';
+      } else {
+        ratingArea.classList.add('hidden');
+        memoArea.classList.add('hidden');
+      }
+    }
+
+    function updateQuickButtonsActive(currentStatus) {
+      ['WANT', 'UNREAD', 'READING', 'COMPLETED'].forEach(stat => {
+        const btn = document.getElementById(`qbtn-${stat}`);
+        if (stat === currentStatus) {
+          btn.className = "py-1.5 px-2 rounded-lg bg-black text-white font-bold transition shadow-sm";
+        } else {
+          btn.className = "py-1.5 px-2 rounded-lg bg-white border border-gray-200 text-gray-700 active:bg-gray-100 transition";
+        }
+      });
     }
 
     // --- 検索＆追加モーダル ---
@@ -372,7 +429,6 @@
       }
     }
 
-    // 🍎ハイブリッド検索処理（Google Books → ダメなら Apple Books）
     async function searchBooks() {
       const query = document.getElementById('search-query').value;
       if (!query) return;
@@ -383,7 +439,6 @@
       let foundBooks = [];
 
       try {
-        // 1. まずGoogle Books APIで検索
         const googleRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5`);
         const googleData = await googleRes.json();
         
@@ -401,7 +456,6 @@
         console.log('Google API Error:', err);
       }
 
-      // 2. Googleで見つからなかったり通信ブロックされた場合、Apple Booksで再検索！
       if (foundBooks.length === 0) {
         resultsDiv.innerHTML = '<p class="text-xs text-center text-gray-500 py-3">Appleのシステムで再検索中...</p>';
         try {
@@ -413,7 +467,6 @@
               return {
                 title: item.trackName || 'タイトル不明',
                 author: item.artistName || '',
-                // Appleの小さな画像をきれいなサイズに置換
                 cover: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '300x300bb') : ''
               };
             });
@@ -423,7 +476,6 @@
         }
       }
 
-      // 3. 結果の表示
       resultsDiv.innerHTML = '';
       if (foundBooks.length === 0) {
         resultsDiv.innerHTML = '<p class="text-xs text-center text-red-500 py-3">見つかりませんでした。<br>作者名を追加してみてください。</p>';
@@ -474,7 +526,7 @@
       document.getElementById('book-form').classList.remove('hidden');
       document.getElementById('back-to-search-btn').classList.add('hidden');
       
-      toggleCompletedFields(); // 読了の場合のみ追加項目を表示
+      toggleCompletedFields();
       closeDetailModal();
       
       setTimeout(() => {
