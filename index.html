@@ -125,7 +125,7 @@
           <button onclick="searchBooks()" class="bg-black text-white px-4 rounded-xl text-sm font-bold active:scale-95 transition">検索</button>
         </div>
         <div id="search-results" class="hidden space-y-2 max-h-48 overflow-y-auto bg-gray-50 p-2 rounded-xl"></div>
-        <button onclick="showManualForm()" class="w-full text-center text-xs text-blue-500 font-semibold py-2">検索せず手動で入力する</button>
+        <button onclick="showManualForm(true)" class="w-full text-center text-xs text-blue-500 font-semibold py-2">検索せず手動で入力する</button>
       </div>
 
       <form id="book-form" onsubmit="handleSaveBook(event)" class="space-y-4 hidden">
@@ -195,12 +195,11 @@
       </form>
     </div>
   </div>
+
   <script>
-    // --- データ管理 ---
     let books = JSON.parse(localStorage.getItem('myBooks')) || [];
     function saveData() { localStorage.setItem('myBooks', JSON.stringify(books)); }
 
-    // --- 状態管理 ---
     let currentCategory = 'ALL';
     let currentStatus = 'ALL';
     let currentSort = 'ADDED_DESC';
@@ -209,7 +208,6 @@
     const STATUS_LABELS = { WANT: '読みたい', UNREAD: '積読', READING: '読んでいる', COMPLETED: '読了' };
     const CATEGORY_LABELS = { STUDY: '勉強用', HOBBY: '趣味用' };
 
-    // --- 描画処理 ---
     function renderBooks() {
       const grid = document.getElementById('books-grid');
       const empty = document.getElementById('empty-state');
@@ -270,7 +268,6 @@
       renderBooks();
     }
 
-    // --- フィルター操作 ---
     function setCategory(cat) {
       currentCategory = cat;
       document.querySelectorAll('.cat-btn').forEach(btn => btn.className = 'cat-btn px-4 py-1.5 rounded-full bg-white text-gray-600 shadow-sm');
@@ -284,7 +281,6 @@
       renderBooks();
     }
 
-    // --- 詳細・クイックアクションモーダル ---
     function openDetailModal(id) {
       viewingBookId = id;
       const book = books.find(b => b.id === id);
@@ -339,7 +335,6 @@
       viewingBookId = null;
     }
 
-    // クイックステータス変更処理
     function quickChangeStatus(newStatus) {
       const book = books.find(b => b.id === viewingBookId);
       if (!book) return;
@@ -387,7 +382,6 @@
       });
     }
 
-    // --- 検索＆追加モーダル ---
     function toggleCompletedFields() {
       const status = document.getElementById('input-status').value;
       const fields = document.getElementById('completed-fields');
@@ -422,17 +416,18 @@
       document.getElementById('book-form').classList.add('hidden');
     }
     
-    function showManualForm() {
+    function showManualForm(isFresh = false) {
       document.getElementById('search-section').classList.add('hidden');
       document.getElementById('book-form').classList.remove('hidden');
       document.getElementById('back-to-search-btn').classList.remove('hidden');
-      if(!document.getElementById('input-id').value) {
+      if (isFresh) {
         document.getElementById('book-form').reset();
+        document.getElementById('input-id').value = '';
+        document.getElementById('input-cover').value = '';
         toggleCompletedFields();
       }
     }
 
-    // ハイブリッド検索処理
     async function searchBooks() {
       const query = document.getElementById('search-query').value;
       if (!query) return;
@@ -489,7 +484,6 @@
       foundBooks.forEach(book => {
         const div = document.createElement('div');
         div.className = "flex items-center p-2 bg-white rounded-lg shadow-sm border border-gray-100 cursor-pointer active:bg-gray-50";
-        // 検索結果クリック時にタイトル・作者・表紙すべてを渡すように修正済み
         div.onclick = () => selectBookFromSearch(book.title, book.author, book.cover);
         div.innerHTML = `
           <div class="w-10 h-14 bg-gray-200 rounded flex-shrink-0 mr-3 overflow-hidden">
@@ -505,11 +499,11 @@
     }
 
     function selectBookFromSearch(title, author, coverUrl) {
+      showManualForm(false);
       document.getElementById('input-id').value = '';
       document.getElementById('input-title').value = title;
       document.getElementById('input-author').value = author;
       document.getElementById('input-cover').value = coverUrl;
-      showManualForm();
     }
 
     function editBook() {
