@@ -211,4 +211,328 @@
         if (currentSort === 'ADDED_ASC') return a.id - b.id;
         if (currentSort === 'RATING_DESC') {
           // お気に入りフラグがある5点は、通常の5点より上にくるように微調整
-          const scoreA = (a.rating || 0) + (a.favorite && a.rating == 5 ? 0
+          const scoreA = (a.rating || 0) + (a.favorite && a.rating == 5 ? 0.1 : 0);
+          const scoreB = (b.rating || 0) + (b.favorite && b.rating == 5 ? 0.1 : 0);
+          return scoreB - scoreA;
+        }
+        if (currentSort === 'READ_DESC') {
+          const dateA = a.readdate ? new Date(a.readdate).getTime() : 0;
+          const dateB = b.readdate ? new Date(b.readdate).getTime() : 0;
+          return dateB - dateA;
+        }
+        return 0;
+      });
+
+      if (filtered.length === 0) {
+        empty.classList.remove('hidden');
+      } else {
+        empty.classList.add('hidden');
+        filtered.forEach(book => {
+          const card = document.createElement('div');
+          card.className = "flex flex-col space-y-2 cursor-pointer group";
+          card.onclick = () => openDetailModal(book.id);
+          
+          // 読了本のみ、表紙に評価バッジを小さく表示
+          let badgeHTML = '';
+          if (book.status === 'COMPLETED' && book.rating > 0) {
+            const icon = (book.rating == 5 && book.favorite) ? '🌟' : '★';
+            badgeHTML = `<div class="absolute top-1.5 right-1.5 bg-black/80 text-white text-[9px] px-1.5 py-0.5 rounded shadow-sm font-bold tracking-widest">${icon}${book.rating}</div>`;
+          }
+
+          card.innerHTML = `
+            <div class="w-full aspect-cover bg-gray-200 rounded-md overflow-hidden shadow-[2px_4px_12px_rgba(0,0,0,0.1)] group-active:scale-95 transition transform relative">
+              <img src="${book.cover}" class="w-full h-full object-cover">
+              ${badgeHTML}
+            </div>
+            <div class="px-0.5">
+              <p class="text-[13px] font-bold leading-tight line-clamp-2 text-gray-900">${book.title}</p>
+            </div>
+          `;
+          grid.appendChild(card);
+        });
+      }
+    }
+
+    function handleSortChange() {
+      currentSort = document.getElementById('sort-select').value;
+      renderBooks();
+    }
+
+    // --- フィルター操作 ---
+    function setCategory(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.cat-btn').forEach(btn => btn.className = 'cat-btn px-4 py-1.5 rounded-full bg-white text-gray-600 shadow-sm');
+      document.getElementById(`cat-${cat}`).className = 'cat-btn px-4 py-1.5 rounded-full bg-black text-white shadow-sm';
+      renderBooks();
+    }
+    function setStatus(stat) {
+      currentStatus = stat;
+      document.querySelectorAll('.stat-btn').forEach(btn => btn.className = 'stat-btn pb-1 font-medium text-gray-400 border-b-2 border-transparent whitespace-nowrap');
+      document.getElementById(`stat-${stat}`).className = 'stat-btn pb-1 font-bold border-b-2 border-black text-black whitespace-nowrap';
+      renderBooks();
+    }
+
+    // --- 詳細モーダル ---
+    function openDetailModal(id) {
+      viewingBookId = id;
+      const book = books.find(b => b.id === id);
+      document.getElementById('detail-cover').src = book.cover;
+      document.getElementById('detail-title').innerText = book.title;
+      document.getElementById('detail-author').innerText = book.author || '作者不明';
+      document.getElementById('detail-category').innerText = CATEGORY_LABELS[book.category];
+      document.getElementById('detail-status').innerText = STATUS_LABELS[book.status];
+      
+      const ratingArea = document.getElementById('detail-rating-area');
+      const memoArea = document.getElementById('detail-memo-area');
+
+      // 読了ステータスの時だけ評価・読了日・感想を表示
+      if (book.status === 'COMPLETED') {
+        ratingArea.classList.remove('hidden');
+        let stars = '';
+        if (book.rating > 0) {
+          if (book.rating == 5 && book.favorite) {
+            stars = '🌟🌟🌟🌟🌟';
+          } else {
+            stars = '★'.repeat(book.rating) + '☆'.repeat(5 - book.rating);
+          }
+        } else {
+          stars = '<span class="text-gray-400 text-sm">未評価</span>';
+        }
+        document.getElementById('detail-rating-stars').innerHTML = stars;
+        document.getElementById('detail-readdate').innerText = book.readdate ? book.readdate.replace(/-/g, '/') : '未設定';
+
+        if (book.memo) {
+          memoArea.classList.remove('hidden');
+          document.getElementById('detail-memo').innerText = book.memo;
+        } else {
+          memoArea.classList.add('hidden');
+        }
+      } else {
+        ratingArea.classList.add('hidden');
+        memoArea.classList.add('hidden');
+      }
+      
+      const modal = document.getElementById('detail-modal');
+      const content = document.getElementById('detail-modal-content');
+      modal.classList.remove('hidden');
+      setTimeout(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); }, 10);
+    }
+    
+    function closeDetailModal() {
+      const modal = document.getElementById('detail-modal');
+      const content = document.getElementById('detail-modal-content');
+      modal.classList.add('opacity-0'); content.classList.add('scale-95');
+      setTimeout(() => modal.classList.add('hidden'), 300);
+      viewingBookId = null;
+    }
+
+    // --- 検索＆追加モーダル ---
+    function toggleCompletedFields() {
+      const status = document.getElementById('input-status').value;
+      const fields = document.getElementById('completed-fields');
+      if (status === 'COMPLETED') {
+        fields.classList.remove('hidden');
+      } else {
+        fields.classList.add('hidden');
+      }
+    }
+
+    function openAddModal() {
+      document.getElementById('form-title').innerText = '本を検索して登録';
+      document.getElementById('search-query').value = '';
+      document.getElementById('search-results').classList.add('hidden');
+      showSearchSection();
+      
+      const modal = document.getElementById('form-modal');
+      const content = document.getElementById('form-modal-content');
+      modal.classList.remove('hidden');
+      setTimeout(() => { modal.classList.remove('opacity-0'); if(window.innerWidth<640) content.classList.remove('translate-y-full'); }, 10);
+    }
+    
+    function closeFormModal() {
+      const modal = document.getElementById('form-modal');
+      const content = document.getElementById('form-modal-content');
+      modal.classList.add('opacity-0'); if(window.innerWidth<640) content.classList.add('translate-y-full');
+      setTimeout(() => modal.classList.add('hidden'), 300);
+    }
+
+    function showSearchSection() {
+      document.getElementById('search-section').classList.remove('hidden');
+      document.getElementById('book-form').classList.add('hidden');
+    }
+    
+    function showManualForm() {
+      document.getElementById('search-section').classList.add('hidden');
+      document.getElementById('book-form').classList.remove('hidden');
+      document.getElementById('back-to-search-btn').classList.remove('hidden');
+      if(!document.getElementById('input-id').value) {
+        document.getElementById('book-form').reset();
+        toggleCompletedFields();
+      }
+    }
+
+    // 🍎ハイブリッド検索処理（Google Books → ダメなら Apple Books）
+    async function searchBooks() {
+      const query = document.getElementById('search-query').value;
+      if (!query) return;
+      const resultsDiv = document.getElementById('search-results');
+      resultsDiv.innerHTML = '<p class="text-xs text-center text-gray-500 py-3">Googleで検索中...</p>';
+      resultsDiv.classList.remove('hidden');
+
+      let foundBooks = [];
+
+      try {
+        // 1. まずGoogle Books APIで検索
+        const googleRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=5`);
+        const googleData = await googleRes.json();
+        
+        if (googleData.items && googleData.items.length > 0) {
+          foundBooks = googleData.items.map(item => {
+            const info = item.volumeInfo;
+            return {
+              title: info.title || 'タイトル不明',
+              author: info.authors ? info.authors.join(', ') : '',
+              cover: info.imageLinks ? info.imageLinks.thumbnail.replace('http:', 'https:') : ''
+            };
+          });
+        }
+      } catch (err) {
+        console.log('Google API Error:', err);
+      }
+
+      // 2. Googleで見つからなかったり通信ブロックされた場合、Apple Booksで再検索！
+      if (foundBooks.length === 0) {
+        resultsDiv.innerHTML = '<p class="text-xs text-center text-gray-500 py-3">Appleのシステムで再検索中...</p>';
+        try {
+          const appleRes = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(query)}&country=jp&entity=ebook&limit=5`);
+          const appleData = await appleRes.json();
+          
+          if (appleData.results && appleData.results.length > 0) {
+            foundBooks = appleData.results.map(item => {
+              return {
+                title: item.trackName || 'タイトル不明',
+                author: item.artistName || '',
+                // Appleの小さな画像をきれいなサイズに置換
+                cover: item.artworkUrl100 ? item.artworkUrl100.replace('100x100bb', '300x300bb') : ''
+              };
+            });
+          }
+        } catch (err) {
+          console.log('Apple API Error:', err);
+        }
+      }
+
+      // 3. 結果の表示
+      resultsDiv.innerHTML = '';
+      if (foundBooks.length === 0) {
+        resultsDiv.innerHTML = '<p class="text-xs text-center text-red-500 py-3">見つかりませんでした。<br>作者名を追加してみてください。</p>';
+        return;
+      }
+
+      foundBooks.forEach(book => {
+        const div = document.createElement('div');
+        div.className = "flex items-center p-2 bg-white rounded-lg shadow-sm border border-gray-100 cursor-pointer active:bg-gray-50";
+        div.onclick = () => selectBookFromSearch(book.title, book.author, book.cover);
+        div.innerHTML = `
+          <div class="w-10 h-14 bg-gray-200 rounded flex-shrink-0 mr-3 overflow-hidden">
+            ${book.cover ? `<img src="${book.cover}" class="w-full h-full object-cover">` : ''}
+          </div>
+          <div class="overflow-hidden">
+            <p class="text-xs font-bold text-gray-900 truncate">${book.title}</p>
+            <p class="text-[10px] text-gray-500 truncate">${book.author}</p>
+          </div>
+        `;
+        resultsDiv.appendChild(div);
+      });
+    }
+
+    function selectBookFromSearch(title, author, coverUrl) {
+      document.getElementById('input-id').value = '';
+      document.getElementById('input-title').value = title;
+      document.getElementById('input-author').value = author;
+      document.getElementById('input-cover').value = coverUrl;
+      showManualForm();
+    }
+
+    function editBook() {
+      const book = books.find(b => b.id === viewingBookId);
+      document.getElementById('input-id').value = book.id;
+      document.getElementById('input-title').value = book.title;
+      document.getElementById('input-author').value = book.author;
+      document.getElementById('input-cover').value = book.cover.includes('unsplash') ? '' : book.cover;
+      document.getElementById('input-category').value = book.category;
+      document.getElementById('input-status').value = book.status;
+      
+      document.getElementById('input-rating').value = book.rating || 0;
+      document.getElementById('input-readdate').value = book.readdate || '';
+      document.getElementById('input-favorite').checked = book.favorite || false;
+      document.getElementById('input-memo').value = book.memo || '';
+      
+      document.getElementById('form-title').innerText = '本を編集';
+      document.getElementById('search-section').classList.add('hidden');
+      document.getElementById('book-form').classList.remove('hidden');
+      document.getElementById('back-to-search-btn').classList.add('hidden');
+      
+      toggleCompletedFields(); // 読了の場合のみ追加項目を表示
+      closeDetailModal();
+      
+      setTimeout(() => {
+        const modal = document.getElementById('form-modal');
+        const content = document.getElementById('form-modal-content');
+        modal.classList.remove('hidden');
+        setTimeout(() => { modal.classList.remove('opacity-0'); if(window.innerWidth<640) content.classList.remove('translate-y-full'); }, 10);
+      }, 300);
+    }
+
+    function handleSaveBook(e) {
+      e.preventDefault();
+      const id = document.getElementById('input-id').value;
+      const status = document.getElementById('input-status').value;
+      
+      if (status === 'READING') {
+        const readingCount = books.filter(b => b.status === 'READING' && b.id !== id).length;
+        if (readingCount >= 3) {
+          alert('「読んでいる」本は最大3冊までしか登録できません。');
+          return;
+        }
+      }
+
+      const defaultCover = 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=300&fit=crop';
+      const bookData = {
+        title: document.getElementById('input-title').value,
+        author: document.getElementById('input-author').value,
+        cover: document.getElementById('input-cover').value || defaultCover,
+        category: document.getElementById('input-category').value,
+        status: status,
+        rating: parseInt(document.getElementById('input-rating').value) || 0,
+        readdate: document.getElementById('input-readdate').value || '',
+        favorite: document.getElementById('input-favorite').checked,
+        memo: document.getElementById('input-memo').value || ''
+      };
+
+      if (id) {
+        const index = books.findIndex(b => b.id === id);
+        books[index] = { ...books[index], ...bookData };
+      } else {
+        bookData.id = Date.now().toString();
+        books.unshift(bookData);
+      }
+
+      saveData();
+      renderBooks();
+      closeFormModal();
+    }
+
+    function deleteBook() {
+      if (confirm('この本を本棚から削除しますか？')) {
+        books = books.filter(b => b.id !== viewingBookId);
+        saveData();
+        renderBooks();
+        closeDetailModal();
+      }
+    }
+
+    renderBooks();
+  </script>
+</body>
+</html>
